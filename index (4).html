@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISE 547 Project — News Summarizer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #fafafa;
+    color: #111;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  header {
+    border-bottom: 1px solid #e5e5e5;
+    padding: 2rem 2rem 1.25rem;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  header h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 0.25rem; }
+  header p  { font-size: 12px; color: #888; }
+
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 1.5rem 2rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .row { display: flex; flex-direction: column; gap: 4px; }
+  label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  input[type="password"], input[type="url"] {
+    width: 100%; padding: 0.55rem 0.75rem;
+    border: 1px solid #ddd; border-radius: 6px;
+    font-size: 13px; font-family: 'SF Mono', Menlo, monospace;
+    background: #fff; color: #111; outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus { border-color: #111; }
+  input::placeholder { color: #bbb; }
+
+  .url-row { display: flex; gap: 6px; }
+  .url-row input { flex: 1; }
+
+  button {
+    cursor: pointer; border-radius: 6px;
+    font-size: 12px; font-family: inherit; font-weight: 500;
+    padding: 0.5rem 1rem; border: 1px solid #ddd;
+    background: #fff; color: #111;
+    transition: background 0.12s;
+  }
+  button:hover { background: #f0f0f0; }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-primary { background: #111; color: #fff; border-color: #111; }
+  .btn-primary:not(:disabled):hover { background: #333; border-color: #333; }
+
+  .tag-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
+  .tag {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; font-family: 'SF Mono', monospace;
+    background: #111; color: #fff;
+    padding: 2px 8px; border-radius: 4px; max-width: 300px;
+  }
+  .tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tag-x {
+    background: none; border: none; color: #fff; opacity: 0.5;
+    font-size: 14px; padding: 0; cursor: pointer; line-height: 1; border-radius: 0;
+  }
+  .tag-x:hover { opacity: 1; background: none; }
+
+  .action-row { display: flex; align-items: center; gap: 8px; }
+  .action-row .status { flex: 1; font-size: 12px; color: #888; }
+
+  hr { border: none; border-top: 1px solid #e5e5e5; }
+
+  .card {
+    border: 1px solid #e5e5e5; border-radius: 8px;
+    overflow: hidden; background: #fff;
+    animation: up 0.25s ease both;
+  }
+  @keyframes up { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  .card-head {
+    padding: 0.9rem 1rem 0.75rem; border-bottom: 1px solid #f0f0f0;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem;
+  }
+  .card-domain { font-size: 10px; font-family: 'SF Mono', monospace; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.2rem; }
+  .card-title  { font-size: 0.95rem; font-weight: 600; line-height: 1.3; }
+  .card-title a { color: inherit; text-decoration: none; }
+  .card-title a:hover { text-decoration: underline; }
+
+  .badge { flex-shrink: 0; font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 500; white-space: nowrap; }
+  .b-loading { background: #fff8e1; color: #b45309; border: 1px solid #fcd34d; }
+  .b-done    { background: #f0fdf4; color: #166534; border: 1px solid #86efac; }
+  .b-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
+
+  .card-body { padding: 0.85rem 1rem; font-size: 13px; line-height: 1.75; color: #333; }
+  .card-body p { margin-bottom: 0.4rem; }
+  .card-body p:last-child { margin-bottom: 0; }
+
+  .card-foot {
+    padding: 0.5rem 1rem; border-top: 1px solid #f0f0f0; background: #fafafa;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-url  { font-size: 10px; font-family: 'SF Mono', monospace; color: #aaa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%; }
+  .card-link { font-size: 11px; color: #111; text-decoration: none; border-bottom: 1px solid #ccc; }
+  .card-link:hover { border-bottom-color: #111; }
+
+  .shimmer {
+    height: 12px; border-radius: 3px; margin-bottom: 8px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%; animation: sh 1.4s infinite;
+  }
+  @keyframes sh { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  .err-msg { font-size: 12px; color: #dc2626; padding: 0.25rem 0; }
+
+  @media (max-width: 560px) {
+    header, main { padding-left: 1rem; padding-right: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ISE 547 Project</h1>
+  <p>Lan Luo &nbsp;&middot;&nbsp; Wenrui Wang</p>
+</header>
+
+<main>
+  <div class="row">
+    <label>Anthropic API Key</label>
+    <input type="password" id="api-key" placeholder="sk-ant-api03-..." autocomplete="off" />
+  </div>
+
+  <div class="row">
+    <label>Article URL</label>
+    <div class="url-row">
+      <input type="url" id="url-input" placeholder="https://..." />
+      <button id="add-btn">Add</button>
+    </div>
+    <div class="tag-list" id="tag-list"></div>
+  </div>
+
+  <div class="action-row">
+    <button class="btn-primary" id="run-btn" disabled>Summarize</button>
+    <button id="clear-btn">Clear</button>
+    <span class="status" id="status">No articles added yet.</span>
+  </div>
+
+  <hr />
+
+  <div id="results"></div>
+</main>
+
+<script>
+let urls = [], summaries = {};
+
+const apiKeyEl  = document.getElementById('api-key');
+const urlInput  = document.getElementById('url-input');
+const addBtn    = document.getElementById('add-btn');
+const tagListEl = document.getElementById('tag-list');
+const runBtn    = document.getElementById('run-btn');
+const clearBtn  = document.getElementById('clear-btn');
+const statusEl  = document.getElementById('status');
+const resultsEl = document.getElementById('results');
+
+function domain(u) { try { return new URL(u).hostname.replace('www.',''); } catch { return u; } }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function syncStatus() {
+  runBtn.disabled = !urls.length;
+  statusEl.textContent = urls.length ? `${urls.length} article${urls.length>1?'s':''} queued.` : 'No articles added yet.';
+}
+
+function renderTags() {
+  tagListEl.innerHTML = urls.map((u,i)=>`
+    <div class="tag"><span title="${esc(u)}">${esc(domain(u))}</span>
+    <button class="tag-x" data-i="${i}">×</button></div>`).join('');
+  tagListEl.querySelectorAll('.tag-x').forEach(b =>
+    b.onclick = () => { urls.splice(+b.dataset.i,1); renderTags(); syncStatus(); });
+}
+
+function addUrl() {
+  const v = urlInput.value.trim();
+  if (!v) return;
+  try { new URL(v); } catch { statusEl.textContent = 'Invalid URL.'; return; }
+  if (!urls.includes(v)) { urls.push(v); renderTags(); syncStatus(); }
+  urlInput.value = '';
+}
+addBtn.onclick = addUrl;
+urlInput.onkeydown = e => { if (e.key==='Enter') addUrl(); };
+
+clearBtn.onclick = () => { urls=[]; summaries={}; renderTags(); syncStatus(); resultsEl.innerHTML=''; };
+
+function renderCards() {
+  resultsEl.innerHTML = Object.entries(summaries).map(([url,s],idx) => {
+    const bc = s.status==='loading'?'b-loading':s.status==='error'?'b-error':'b-done';
+    const bl = s.status==='loading'?'Loading…':s.status==='error'?'Error':'Done';
+    const title = s.title
+      ? `<div class="card-title"><a href="${esc(url)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`
+      : `<div class="card-title" style="color:#aaa;font-style:italic">Fetching…</div>`;
+    const body = s.status==='loading'
+      ? `<div class="shimmer" style="width:85%"></div><div class="shimmer" style="width:70%"></div><div class="shimmer" style="width:78%"></div>`
+      : s.status==='error'
+      ? `<div class="err-msg">${esc(s.error)}</div>`
+      : (s.summary||'').split('\n').filter(Boolean).map(p=>`<p>${esc(p)}</p>`).join('');
+    return `
+      <div class="card" style="animation-delay:${idx*.04}s">
+        <div class="card-head">
+          <div><div class="card-domain">${esc(domain(url))}</div>${title}</div>
+          <span class="badge ${bc}">${bl}</span>
+        </div>
+        <div class="card-body">${body}</div>
+        <div class="card-foot">
+          <span class="card-url">${esc(url)}</span>
+          <a class="card-link" href="${esc(url)}" target="_blank" rel="noopener">Read →</a>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function summarizeOne(url) {
+  summaries[url] = { status:'loading' };
+  renderCards();
+  const key = apiKeyEl.value.trim();
+  if (!key) { summaries[url]={status:'error',error:'API key required.'}; renderCards(); return; }
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        tools: [{ type:'web_search_20250305', name:'web_search' }],
+        messages: [{ role:'user', content:
+          `Use web_search to read the article at: ${url}\nReturn ONLY this JSON (no markdown):\n{"title":"...","summary":"3-5 sentence summary."}`
+        }]
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
+    const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+    const m = text.match(/\{[\s\S]*?"title"[\s\S]*?"summary"[\s\S]*?\}/);
+    if (!m) throw new Error('Could not parse response. Please retry.');
+    const p = JSON.parse(m[0]);
+    summaries[url] = { status:'done', title: p.title||domain(url), summary: p.summary||'' };
+  } catch(e) {
+    summaries[url] = { status:'error', error: e.message };
+  }
+  renderCards();
+}
+
+runBtn.onclick = async () => {
+  if (!urls.length) return;
+  if (!apiKeyEl.value.trim()) { statusEl.textContent='Enter your API key first.'; apiKeyEl.focus(); return; }
+  runBtn.disabled = true;
+  statusEl.textContent = `Summarizing ${urls.length} article${urls.length>1?'s':''}…`;
+  summaries = {};
+  await Promise.all(urls.map(summarizeOne));
+  runBtn.disabled = false;
+  const ok  = Object.values(summaries).filter(s=>s.status==='done').length;
+  const bad = Object.values(summaries).filter(s=>s.status==='error').length;
+  statusEl.textContent = `Done — ${ok} succeeded${bad?`, ${bad} failed`:''}.`;
+};
+</script>
+</body>
+</html>
